@@ -1,4 +1,6 @@
+using System;
 using System.Collections.Generic;
+using System.Linq;
 using MiniBlog.Model;
 using MiniBlog.Stores;
 
@@ -25,6 +27,16 @@ namespace MiniBlog.Service
         public virtual void AddArticle(Article article)
         {
             articleStore.Articles.Add(article);
+        }
+
+        public Article GetArticleById(Guid id)
+        {
+            return articleStore.Articles.FirstOrDefault(article => article.Id == id);
+        }
+
+        public void RemoveArticlesByUserName(string name)
+        {
+            articleStore.Articles.RemoveAll(article => article.UserName == name);
         }
     }
 }

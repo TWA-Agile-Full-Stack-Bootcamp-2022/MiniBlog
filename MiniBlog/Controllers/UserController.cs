@@ -57,7 +57,7 @@ namespace MiniBlog.Controllers
             if (foundUser != null)
             {
                 userService.RemoveUser(foundUser);
-                articleService.GetArticles().RemoveAll(a => a.UserName == foundUser.Name);
+                articleService.RemoveArticlesByUserName(foundUser.Name);
             }
 
             return foundUser;
