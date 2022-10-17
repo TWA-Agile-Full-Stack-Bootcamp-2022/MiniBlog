@@ -103,15 +103,5 @@ namespace MiniBlogTest.ControllerTest
             }).CreateClient();
             return client;
         }
-
-        private async Task<T> DeserializeObject<T>(HttpResponseMessage response)
-        {
-            return JsonConvert.DeserializeObject<T>(await response.Content.ReadAsStringAsync());
-        }
-
-        private StringContent SerializeToStringContent<T>(T obj)
-        {
-            return new StringContent(JsonConvert.SerializeObject(obj), Encoding.UTF8, MediaTypeNames.Application.Json);
-        }
     }
 }
