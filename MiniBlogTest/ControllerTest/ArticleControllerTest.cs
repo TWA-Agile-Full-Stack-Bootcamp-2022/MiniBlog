@@ -1,13 +1,17 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Net;
 using System.Net.Http;
 using System.Net.Mime;
 using System.Text;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.TestHost;
+using Microsoft.Extensions.DependencyInjection;
 using MiniBlog;
 using MiniBlog.Model;
+using MiniBlog.Service;
 using MiniBlog.Stores;
+using Moq;
 using Newtonsoft.Json;
 using Xunit;
 
@@ -19,14 +23,26 @@ namespace MiniBlogTest.ControllerTest
         public ArticleControllerTest(CustomWebApplicationFactory<Startup> factory)
             : base(factory)
         {
-            UserStoreWillReplaceInFuture.Init();
-            ArticleStoreWillReplaceInFuture.Init();
         }
 
         [Fact]
         public async void Should_get_all_Article()
         {
-            var client = GetClient();
+            var articles = new List<Article>
+            {
+                new Article(null, "Happy new year", "Happy 2021 new year"),
+                new Article(null, "Happy Halloween", "Halloween is coming"),
+            };
+            var mockArticleService = new Mock<ArticleService>();
+            mockArticleService.Setup(store => store.GetArticles()).Returns(articles);
+            var client = Factory.WithWebHostBuilder(builder =>
+            {
+                builder.ConfigureServices(services =>
+                {
+                    services.AddScoped((serviceProvider) => mockArticleService.Object);
+                });
+            }).CreateClient();
+
             var response = await client.GetAsync("/article");
             response.EnsureSuccessStatusCode();
             var body = await response.Content.ReadAsStringAsync();
@@ -37,14 +53,20 @@ namespace MiniBlogTest.ControllerTest
         [Fact]
         public async void Should_create_article_fail_when_ArticleStore_unavailable()
         {
-            var client = GetClient();
-            string userNameWhoWillAdd = "Tom";
-            string articleContent = "What a good day today!";
-            string articleTitle = "Good day";
-            Article article = new Article(userNameWhoWillAdd, articleTitle, articleContent);
+            var mockArticleService = new Mock<ArticleService>();
+            mockArticleService.Setup(store => store.AddArticle(It.IsAny<Article>())).Throws<Exception>();
+            var client = Factory.WithWebHostBuilder(builder =>
+            {
+                builder.ConfigureServices(services =>
+                {
+                    services.AddScoped((serviceProvider) => mockArticleService.Object);
+                });
+            }).CreateClient();
 
+            Article article = new Article("Tom", "Good day", "What a good day today!");
             var httpContent = JsonConvert.SerializeObject(article);
             StringContent content = new StringContent(httpContent, Encoding.UTF8, MediaTypeNames.Application.Json);
+
             var response = await client.PostAsync("/article", content);
             Assert.Equal(HttpStatusCode.InternalServerError, response.StatusCode);
         }
@@ -68,10 +90,10 @@ namespace MiniBlogTest.ControllerTest
             var articleResponse = await client.GetAsync("/article");
             var body = await articleResponse.Content.ReadAsStringAsync();
             var articles = JsonConvert.DeserializeObject<List<Article>>(body);
-            Assert.Equal(3, articles.Count);
-            Assert.Equal(articleTitle, articles[2].Title);
-            Assert.Equal(articleContent, articles[2].Content);
-            Assert.Equal(userNameWhoWillAdd, articles[2].UserName);
+            Assert.Equal(1, articles.Count);
+            Assert.Equal(articleTitle, articles[0].Title);
+            Assert.Equal(articleContent, articles[0].Content);
+            Assert.Equal(userNameWhoWillAdd, articles[0].UserName);
 
             var userResponse = await client.GetAsync("/user");
             var usersJson = await userResponse.Content.ReadAsStringAsync();

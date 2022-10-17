@@ -8,9 +8,12 @@ using System.Text;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.TestHost;
+using Microsoft.Extensions.DependencyInjection;
 using MiniBlog;
 using MiniBlog.Model;
+using MiniBlog.Service;
 using MiniBlog.Stores;
+using Moq;
 using Newtonsoft.Json;
 using Xunit;
 
@@ -23,8 +26,6 @@ namespace MiniBlogTest.ControllerTest
             : base(factory)
 
         {
-            UserStoreWillReplaceInFuture.Init();
-            ArticleStoreWillReplaceInFuture.Init();
         }
 
         [Fact]
@@ -63,7 +64,15 @@ namespace MiniBlogTest.ControllerTest
         [Fact]
         public async Task Should_register_user_fail_when_UserStore_unavailable()
         {
-            var client = GetClient();
+            var mockUserService = new Mock<UserService>();
+            mockUserService.Setup(store => store.AddUser(It.IsAny<User>())).Throws<Exception>();
+            var client = Factory.WithWebHostBuilder(builder =>
+            {
+                builder.ConfigureServices(services =>
+                {
+                    services.AddScoped((serviceProvider) => mockUserService.Object);
+                });
+            }).CreateClient();
 
             var userName = "Tom";
             var email = "a@b.com";
@@ -86,10 +95,12 @@ namespace MiniBlogTest.ControllerTest
             var originalUser = new User(userName, originalEmail);
 
             var newUser = new User(userName, updatedEmail);
-            StringContent registerUserContent = new StringContent(JsonConvert.SerializeObject(originalUser), Encoding.UTF8, MediaTypeNames.Application.Json);
+            StringContent registerUserContent = new StringContent(JsonConvert.SerializeObject(originalUser),
+                Encoding.UTF8, MediaTypeNames.Application.Json);
             var registerResponse = await client.PostAsync("/user", registerUserContent);
 
-            StringContent updateUserContent = new StringContent(JsonConvert.SerializeObject(newUser), Encoding.UTF8, MediaTypeNames.Application.Json);
+            StringContent updateUserContent = new StringContent(JsonConvert.SerializeObject(newUser), Encoding.UTF8,
+                MediaTypeNames.Application.Json);
             await client.PutAsync("/user", updateUserContent);
 
             var users = await GetUsers(client);
@@ -109,7 +120,7 @@ namespace MiniBlogTest.ControllerTest
             await PrepareArticle(new Article(userName, string.Empty, string.Empty), client);
 
             var articles = await GetArticles(client);
-            Assert.Equal(4, articles.Count);
+            Assert.Equal(2, articles.Count);
 
             var users = await GetUsers(client);
             Assert.Equal(1, users.Count);
@@ -117,7 +128,7 @@ namespace MiniBlogTest.ControllerTest
             await client.DeleteAsync($"/user?name={userName}");
 
             var articlesAfterDeleteUser = await GetArticles(client);
-            Assert.Equal(2, articlesAfterDeleteUser.Count);
+            Assert.Equal(0, articlesAfterDeleteUser.Count);
 
             var usersAfterDeleteUser = await GetUsers(client);
             Assert.Equal(0, usersAfterDeleteUser.Count);
@@ -141,7 +152,8 @@ namespace MiniBlogTest.ControllerTest
 
         private static async Task PrepareArticle(Article article1, HttpClient client)
         {
-            StringContent registerUserContent = new StringContent(JsonConvert.SerializeObject(article1), Encoding.UTF8, MediaTypeNames.Application.Json);
+            StringContent registerUserContent = new StringContent(JsonConvert.SerializeObject(article1), Encoding.UTF8,
+                MediaTypeNames.Application.Json);
             await client.PostAsync("/article", registerUserContent);
         }
     }
