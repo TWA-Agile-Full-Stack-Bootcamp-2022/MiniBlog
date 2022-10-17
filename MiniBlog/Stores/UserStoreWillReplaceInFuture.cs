@@ -11,12 +11,12 @@ namespace MiniBlog.Stores
             Users = new List<User>();
         }
 
-        public static List<User> Users { get; private set; }
+        public List<User> Users { get; private set; }
 
         /// <summary>
         /// This is for test only, please help resolve!
         /// </summary>
-        public static void Init()
+        public void Init()
         {
             Users = new List<User>();
         }
