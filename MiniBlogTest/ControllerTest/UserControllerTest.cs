@@ -8,9 +8,12 @@ using System.Text;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.TestHost;
+using Microsoft.Extensions.DependencyInjection;
 using MiniBlog;
 using MiniBlog.Model;
+using MiniBlog.Service;
 using MiniBlog.Stores;
+using Moq;
 using Newtonsoft.Json;
 using Xunit;
 
@@ -23,8 +26,6 @@ namespace MiniBlogTest.ControllerTest
             : base(factory)
 
         {
-            UserStoreWillReplaceInFuture.Init();
-            ArticleStoreWillReplaceInFuture.Init();
         }
 
         [Fact]
@@ -63,7 +64,15 @@ namespace MiniBlogTest.ControllerTest
         [Fact]
         public async Task Should_register_user_fail_when_UserStore_unavailable()
         {
-            var client = GetClient();
+            var mockService = new Mock<UserService>();
+            mockService.Setup(service => service.AddUser(It.IsAny<User>())).Throws<Exception>();
+            var client = Factory.WithWebHostBuilder(builder =>
+            {
+                builder.ConfigureServices(services =>
+                {
+                    services.AddScoped((serviceProvider) => { return mockService.Object; });
+                });
+            }).CreateClient();
 
             var userName = "Tom";
             var email = "a@b.com";
