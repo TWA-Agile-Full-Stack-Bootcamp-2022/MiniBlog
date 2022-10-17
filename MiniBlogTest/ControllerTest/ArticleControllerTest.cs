@@ -1,13 +1,18 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Net;
 using System.Net.Http;
 using System.Net.Mime;
 using System.Text;
+using System.Threading.Tasks;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.TestHost;
+using Microsoft.Extensions.DependencyInjection;
 using MiniBlog;
 using MiniBlog.Model;
+using MiniBlog.Service;
 using MiniBlog.Stores;
+using Moq;
 using Newtonsoft.Json;
 using Xunit;
 
@@ -19,67 +24,84 @@ namespace MiniBlogTest.ControllerTest
         public ArticleControllerTest(CustomWebApplicationFactory<Startup> factory)
             : base(factory)
         {
-            UserStoreWillReplaceInFuture.Init();
-            ArticleStoreWillReplaceInFuture.Init();
         }
 
         [Fact]
         public async void Should_get_all_Article()
         {
-            var client = GetClient();
+            // given
+            var client = MockArticleServiceWith2ArticlesExisting();
+            // when
             var response = await client.GetAsync("/article");
+            // then
             response.EnsureSuccessStatusCode();
-            var body = await response.Content.ReadAsStringAsync();
-            var users = JsonConvert.DeserializeObject<List<Article>>(body);
-            Assert.Equal(2, users.Count);
+            var allArticles = await DeserializeObject<List<Article>>(response);
+            Assert.Equal(2, allArticles.Count);
         }
 
         [Fact]
         public async void Should_create_article_fail_when_ArticleStore_unavailable()
         {
-            var client = GetClient();
-            string userNameWhoWillAdd = "Tom";
-            string articleContent = "What a good day today!";
-            string articleTitle = "Good day";
-            Article article = new Article(userNameWhoWillAdd, articleTitle, articleContent);
+            var client = MockArticleServiceThrowExceptionWhenAddArticle();
 
-            var httpContent = JsonConvert.SerializeObject(article);
-            StringContent content = new StringContent(httpContent, Encoding.UTF8, MediaTypeNames.Application.Json);
-            var response = await client.PostAsync("/article", content);
+            var response = await client.PostAsync("/article",
+                SerializeToStringContent(new Article("Tom", "Good day", "What a good day today!")));
+
             Assert.Equal(HttpStatusCode.InternalServerError, response.StatusCode);
         }
 
         [Fact]
         public async void Should_create_article_and_register_user_correct()
         {
+            var article = new Article("Tom", "Good day", "What a good day today!");
             var client = GetClient();
-            string userNameWhoWillAdd = "Tom";
-            string articleContent = "What a good day today!";
-            string articleTitle = "Good day";
-            Article article = new Article(userNameWhoWillAdd, articleTitle, articleContent);
 
-            var httpContent = JsonConvert.SerializeObject(article);
-            StringContent content = new StringContent(httpContent, Encoding.UTF8, MediaTypeNames.Application.Json);
-            var createArticleResponse = await client.PostAsync("/article", content);
-
-            // It fail, please help
+            var createArticleResponse = await client.PostAsync("/article", SerializeToStringContent(article));
             Assert.Equal(HttpStatusCode.Created, createArticleResponse.StatusCode);
 
             var articleResponse = await client.GetAsync("/article");
-            var body = await articleResponse.Content.ReadAsStringAsync();
-            var articles = JsonConvert.DeserializeObject<List<Article>>(body);
-            Assert.Equal(3, articles.Count);
-            Assert.Equal(articleTitle, articles[2].Title);
-            Assert.Equal(articleContent, articles[2].Content);
-            Assert.Equal(userNameWhoWillAdd, articles[2].UserName);
+            var articles = await DeserializeObject<List<Article>>(articleResponse);
+            Assert.Single(articles);
+            Assert.Equal("Tom", articles[0].UserName);
+            Assert.Equal("Good day", articles[0].Title);
+            Assert.Equal("What a good day today!", articles[0].Content);
 
             var userResponse = await client.GetAsync("/user");
-            var usersJson = await userResponse.Content.ReadAsStringAsync();
-            var users = JsonConvert.DeserializeObject<List<User>>(usersJson);
-
-            Assert.Equal(1, users.Count);
-            Assert.Equal(userNameWhoWillAdd, users[0].Name);
+            var users = await DeserializeObject<List<User>>(userResponse);
+            Assert.Single(users);
+            Assert.Equal("Tom", users[0].Name);
             Assert.Equal("anonymous@unknow.com", users[0].Email);
+        }
+
+        private HttpClient MockArticleServiceWith2ArticlesExisting()
+        {
+            var articles = new List<Article>
+            {
+                new Article(null, "Happy new year", "Happy 2021 new year"),
+                new Article(null, "Happy Halloween", "Halloween is coming"),
+            };
+            var mockArticleService = new Mock<ArticleService>();
+            mockArticleService.Setup(service => service.GetArticles()).Returns(articles);
+            return GetHttpClientWithMock(mockArticleService);
+        }
+
+        private HttpClient MockArticleServiceThrowExceptionWhenAddArticle()
+        {
+            var mockArticleService = new Mock<ArticleService>();
+            mockArticleService.Setup(store => store.AddArticle(It.IsAny<Article>())).Throws<Exception>();
+            return GetHttpClientWithMock(mockArticleService);
+        }
+
+        private HttpClient GetHttpClientWithMock(Mock<ArticleService> mockArticleService)
+        {
+            var client = Factory.WithWebHostBuilder(builder =>
+            {
+                builder.ConfigureServices(services =>
+                {
+                    services.AddScoped((serviceProvider) => mockArticleService.Object);
+                });
+            }).CreateClient();
+            return client;
         }
     }
 }
