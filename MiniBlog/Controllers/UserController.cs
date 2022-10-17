@@ -24,11 +24,7 @@ namespace MiniBlog.Controllers
         [HttpPost]
         public ActionResult<User> Register(User user)
         {
-            if (!userService.IsUserExists(user.Name))
-            {
-                userService.AddUser(user);
-            }
-
+            userService.AddUser(user);
             return Created("/user", user);
         }
 
@@ -41,26 +37,14 @@ namespace MiniBlog.Controllers
         [HttpPut]
         public User Update(User user)
         {
-            var foundUser = userService.GetUserByName(user.Name);
-            if (foundUser != null)
-            {
-                foundUser.Email = user.Email;
-            }
-
-            return foundUser;
+            return userService.UpdateByUser(user);
         }
 
         [HttpDelete]
         public User Delete(string name)
         {
-            var foundUser = userService.GetUserByName(name);
-            if (foundUser != null)
-            {
-                userService.RemoveUser(foundUser);
-                articleService.RemoveArticlesByUserName(foundUser.Name);
-            }
-
-            return foundUser;
+            articleService.RemoveArticlesByUserName(name);
+            return userService.RemoveUser(name);
         }
 
         [HttpGet("{name}")]

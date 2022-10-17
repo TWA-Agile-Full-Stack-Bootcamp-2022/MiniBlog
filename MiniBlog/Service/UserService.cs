@@ -21,7 +21,10 @@ namespace MiniBlog.Service
 
         public virtual void AddUser(User user)
         {
-            userStore.Users.Add(user);
+            if (!IsUserExists(user.Name))
+            {
+                userStore.Users.Add(user);
+            }
         }
 
         public virtual List<User> GetUsers()
@@ -35,15 +38,32 @@ namespace MiniBlog.Service
                 string.Equals(usr.Name, name, StringComparison.CurrentCultureIgnoreCase));
         }
 
-        public bool IsUserExists(string name)
+        public User UpdateByUser(User user)
+        {
+            var foundUser = GetUserByName(user.Name);
+            if (foundUser != null)
+            {
+                foundUser.Email = user.Email;
+            }
+
+            return foundUser;
+        }
+
+        public User RemoveUser(string name)
+        {
+            var foundUser = GetUserByName(name);
+            if (foundUser != null)
+            {
+                userStore.Users.Remove(foundUser);
+            }
+
+            return foundUser;
+        }
+
+        private bool IsUserExists(string name)
         {
             return userStore.Users.Exists(user =>
                 string.Equals(name, user.Name, StringComparison.CurrentCultureIgnoreCase));
-        }
-
-        public void RemoveUser(User foundUser)
-        {
-            userStore.Users.Remove(foundUser);
         }
     }
 }

@@ -16,7 +16,7 @@ namespace MiniBlog.Controllers
     {
         private readonly ArticleService articleService;
         private readonly UserService userService;
-        
+
         public ArticleController(ArticleService articleService, UserService userService)
         {
             this.articleService = articleService;
@@ -32,16 +32,8 @@ namespace MiniBlog.Controllers
         [HttpPost]
         public ActionResult<Article> Create(Article article)
         {
-            if (article.UserName != null)
-            {
-                if (!userService.IsUserExists(article.UserName))
-                {
-                    userService.AddUser(new User(article.UserName));
-                }
-
-                articleService.AddArticle(article);
-            }
-
+            articleService.AddArticle(article);
+            userService.AddUser(new User(article.UserName));
             return Created("/article", article);
         }
 
