@@ -20,7 +20,7 @@ namespace MiniBlog.Controllers
         }
 
         [HttpPost]
-        public Article Create(Article article)
+        public ActionResult<Article> Create(Article article)
         {
             if (article.UserName != null)
             {
@@ -32,7 +32,7 @@ namespace MiniBlog.Controllers
                 ArticleStoreWillReplaceInFuture.Articles.Add(article);
             }
 
-            return article;
+            return Created("/article", article);
         }
 
         [HttpGet("{id}")]
