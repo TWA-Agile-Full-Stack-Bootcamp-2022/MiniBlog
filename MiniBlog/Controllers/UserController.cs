@@ -13,7 +13,6 @@ namespace MiniBlog.Controllers
     public class UserController : ControllerBase
     {
         private ArticleService articleService;
-
         private UserService userService;
 
         public UserController(ArticleService articleService, UserService userService)
@@ -25,7 +24,7 @@ namespace MiniBlog.Controllers
         [HttpPost]
         public ActionResult<User> Register(User user)
         {
-            if (!userService.GetUsers().Exists(_ => user.Name.ToLower() == _.Name.ToLower()))
+            if (!userService.IsUserExists(user.Name))
             {
                 userService.AddUser(user);
             }
@@ -42,7 +41,7 @@ namespace MiniBlog.Controllers
         [HttpPut]
         public User Update(User user)
         {
-            var foundUser = userService.GetUsers().FirstOrDefault(_ => _.Name == user.Name);
+            var foundUser = userService.GetUserByName(user.Name);
             if (foundUser != null)
             {
                 foundUser.Email = user.Email;
@@ -54,10 +53,10 @@ namespace MiniBlog.Controllers
         [HttpDelete]
         public User Delete(string name)
         {
-            var foundUser = userService.GetUsers().FirstOrDefault(_ => _.Name == name);
+            var foundUser = userService.GetUserByName(name);
             if (foundUser != null)
             {
-                userService.GetUsers().Remove(foundUser);
+                userService.RemoveUser(foundUser);
                 articleService.GetArticles().RemoveAll(a => a.UserName == foundUser.Name);
             }
 
@@ -67,7 +66,7 @@ namespace MiniBlog.Controllers
         [HttpGet("{name}")]
         public User GetByName(string name)
         {
-            return userService.GetUsers().FirstOrDefault(_ => _.Name.ToLower() == name.ToLower());
+            return userService.GetUserByName(name);
         }
     }
 }

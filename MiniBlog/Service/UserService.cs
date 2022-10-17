@@ -1,4 +1,6 @@
+using System;
 using System.Collections.Generic;
+using System.Linq;
 using MiniBlog.Model;
 using MiniBlog.Stores;
 
@@ -25,6 +27,23 @@ namespace MiniBlog.Service
         public virtual List<User> GetUsers()
         {
             return userStore.Users;
+        }
+
+        public User GetUserByName(string name)
+        {
+            return userStore.Users.FirstOrDefault(usr =>
+                string.Equals(usr.Name, name, StringComparison.CurrentCultureIgnoreCase));
+        }
+
+        public bool IsUserExists(string name)
+        {
+            return userStore.Users.Exists(user =>
+                string.Equals(name, user.Name, StringComparison.CurrentCultureIgnoreCase));
+        }
+
+        public void RemoveUser(User foundUser)
+        {
+            userStore.Users.Remove(foundUser);
         }
     }
 }
